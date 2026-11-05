@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class HUD extends StatelessWidget {
   final int battery;
+  final String signal;
   final bool network;
   final bool deviceOk;
   final int volume;
@@ -11,6 +12,7 @@ class HUD extends StatelessWidget {
   const HUD({
     super.key,
     required this.battery,
+    required this.signal,
     required this.network,
     required this.deviceOk,
     required this.volume,
@@ -43,7 +45,7 @@ class HUD extends StatelessWidget {
       child: Row(
         children: [
           _item(Icons.battery_full, '$battery%'),
-          _item(Icons.signal_cellular_alt, network ? 'STRONG' : 'NO SIGNAL'),
+          _item(Icons.signal_cellular_alt, signal),
           _item(Icons.favorite, deviceOk ? 'DEVICE OK' : 'DEVICE ERR'),
           _item(Icons.wifi, network ? 'CONNECTED' : 'OFFLINE'),
           const Spacer(),

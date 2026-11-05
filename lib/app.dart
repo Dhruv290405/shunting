@@ -44,6 +44,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
   int page = 0;
   int volume = 5;
   int battery = 0;
+  int gsmRssi = 0;
   bool network = false;
   double distance = 0;
   bool obstacle = false;
@@ -51,11 +52,30 @@ class _ShuntingAppState extends State<ShuntingApp> {
   bool shuntingCompleted = false;
   bool _devicesLoaded = false;
   bool _backendAvailable = true;
+  DateTime? _lastTelemetryAt;
 
   @override
   void initState() {
     super.initState();
+    _volumePlayer.setAudioContext(
+      AudioContextConfig(
+        route: AudioContextConfigRoute.speaker,
+        focus: AudioContextConfigFocus.gain,
+        respectSilence: false,
+      ).build(),
+    );
     _init();
+  }
+
+  Future<void> _playVolumeSound(String asset) async {
+    try {
+      await _volumePlayer.stop();
+      await _volumePlayer.setVolume(1.0);
+      await _volumePlayer.play(AssetSource(asset), volume: 1.0);
+    } catch (error, stackTrace) {
+      debugPrint('Unable to play volume feedback: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   Future<void> _init() async {
@@ -110,8 +130,10 @@ class _ShuntingAppState extends State<ShuntingApp> {
       current = device;
       distance = ((readings['distance_cm'] as num?)?.toDouble() ?? 0) / 100;
       battery = (diagnostics['battery_pct'] as num?)?.toInt() ?? 0;
+      gsmRssi = (diagnostics['gsm_rssi'] as num?)?.toInt() ?? 0;
       network = diagnostics['link_state'] == 'OK' ||
           diagnostics['link_state'] == 'CONNECTED';
+      _lastTelemetryAt = DateTime.now();
       obstacle = data['obstacle'] ?? false;
       charger = diagnostics['is_charging'] ?? false;
       shuntingCompleted = data['completed'] ?? false;
@@ -168,6 +190,14 @@ class _ShuntingAppState extends State<ShuntingApp> {
   }
 
   Widget _buildScreen() {
+    final volumeDown = () {
+      setState(() => volume = (volume - 1).clamp(0, 10));
+      _playVolumeSound('sounds/volume_down.wav');
+    };
+    final volumeUp = () {
+      setState(() => volume = (volume + 1).clamp(0, 10));
+      _playVolumeSound('sounds/volume_up.wav');
+    };
     switch (screen) {
       case TabletScreen.splash:
         return const SplashScreen();
@@ -175,24 +205,32 @@ class _ShuntingAppState extends State<ShuntingApp> {
         return ReferenceScreen(
           asset: 'assets/images/01_Pairing_P1.png',
           onPrimary: () => setState(() => screen = TabletScreen.pairingP2),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.pairingP2:
         return ReferenceScreen(
           asset: 'assets/images/05_Pairing_P2.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP1),
           onPrimary: () => setState(() => screen = TabletScreen.pairingP3),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.pairingP3:
         return ReferenceScreen(
           asset: 'assets/images/06_Pairing_P3.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP2),
           onPrimary: () => setState(() => screen = TabletScreen.pairingP4),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.pairingP4:
         return ReferenceScreen(
           asset: 'assets/images/07_Pairing_P4.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP3),
           onPrimary: () => setState(() => screen = TabletScreen.pairingP5),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.pairingP5:
         return ReferenceScreen(
@@ -201,9 +239,15 @@ class _ShuntingAppState extends State<ShuntingApp> {
           onPrimary: () => setState(() => screen = current == null
               ? TabletScreen.error
               : TabletScreen.telemetry),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.connecting:
-        return const ReferenceScreen(asset: 'assets/images/02_Connecting.png');
+        return ReferenceScreen(
+          asset: 'assets/images/02_Connecting.png',
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
+        );
       case TabletScreen.telemetry:
         return ReferenceScreen(
           asset: 'assets/images/04_Telemetry.png',
@@ -223,40 +267,54 @@ class _ShuntingAppState extends State<ShuntingApp> {
               ),
             ),
           ),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.error:
         return ReferenceScreen(
           asset: 'assets/images/03_Error.png',
           onPrimary: _pollTelemetry,
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.changeDevice:
         return ReferenceScreen(
           asset: 'assets/images/09_Change_Device.png',
           onBack: () => setState(() => screen = TabletScreen.telemetry),
           onPrimary: () => setState(() => screen = TabletScreen.confirmSelection),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.confirmSelection:
         return ReferenceScreen(
           asset: 'assets/images/10_Confirm_Selection.png',
           onPrimary: () => setState(() => screen = TabletScreen.telemetry),
           onBack: () => setState(() => screen = TabletScreen.changeDevice),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.endShunting:
         return ReferenceScreen(
           asset: 'assets/images/11_End_Shunting.png',
           onPrimary: finishShunting,
           onBack: () => setState(() => screen = TabletScreen.telemetry),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.shuntingCompleted:
         return ReferenceScreen(
           asset: 'assets/images/12_Shunting_Completed.png',
           onPrimary: () => setState(() => screen = TabletScreen.devices),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.charger:
         return ReferenceScreen(
           asset: 'assets/images/13_Charger_Plugged.png',
           onPrimary: toggleCharger,
           onBack: () => setState(() => screen = TabletScreen.telemetry),
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.obstacleWarning:
         return ReferenceScreen(
@@ -265,6 +323,8 @@ class _ShuntingAppState extends State<ShuntingApp> {
             await clearObstacle();
             if (mounted) setState(() => screen = TabletScreen.telemetry);
           },
+          onVolumeDown: volumeDown,
+          onVolumeUp: volumeUp,
         );
       case TabletScreen.devices:
         return _devices();
@@ -372,19 +432,37 @@ class _ShuntingAppState extends State<ShuntingApp> {
         right: 60,
         child: HUD(
           battery: battery,
+          signal: _signalLabel,
           network: network,
-          deviceOk: current != null,
+          deviceOk: current != null && _telemetryIsFresh,
           volume: volume,
           onVolumeDown: () {
             setState(() => volume = (volume - 1).clamp(0, 10));
-            _volumePlayer.play(AssetSource('sounds/volume_down.wav'));
+            _playVolumeSound('sounds/volume_down.wav');
           },
           onVolumeUp: () {
             setState(() => volume = (volume + 1).clamp(0, 10));
-            _volumePlayer.play(AssetSource('sounds/volume_up.wav'));
+            _playVolumeSound('sounds/volume_up.wav');
           },
         ),
       );
+
+  bool get _telemetryIsFresh {
+    final lastTelemetry = _lastTelemetryAt;
+    return lastTelemetry != null &&
+        DateTime.now().difference(lastTelemetry) <=
+            const Duration(seconds: 3);
+  }
+
+  String get _signalLabel {
+    if (!_telemetryIsFresh || !network || gsmRssi == 0) {
+      return 'NO SIGNAL';
+    }
+    if (gsmRssi >= -75) return 'STRONG';
+    if (gsmRssi >= -95) return 'FAIR';
+    if (gsmRssi >= -110) return 'WEAK';
+    return 'NO SIGNAL';
+  }
 
   @override
   Widget build(BuildContext context) {

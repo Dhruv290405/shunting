@@ -4,6 +4,8 @@ class ReferenceScreen extends StatelessWidget {
   final String asset;
   final VoidCallback? onPrimary;
   final VoidCallback? onBack;
+  final VoidCallback? onVolumeDown;
+  final VoidCallback? onVolumeUp;
   final Widget? overlay;
 
   const ReferenceScreen({
@@ -11,6 +13,8 @@ class ReferenceScreen extends StatelessWidget {
     required this.asset,
     this.onPrimary,
     this.onBack,
+    this.onVolumeDown,
+    this.onVolumeUp,
     this.overlay,
   });
 
@@ -22,10 +26,10 @@ class ReferenceScreen extends StatelessWidget {
         Image.asset(asset, fit: BoxFit.fill),
         if (onBack != null)
           Positioned(
-            left: 20,
+            left: 45,
             bottom: 0,
-            width: 180,
-            height: 130,
+            width: 120,
+            height: 90,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onBack,
@@ -34,13 +38,37 @@ class ReferenceScreen extends StatelessWidget {
           ),
         if (onPrimary != null)
           Positioned(
-            left: 80,
-            right: 80,
+            left: 180,
+            right: 20,
             bottom: 0,
-            height: 160,
+            height: 100,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onPrimary,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        if (onVolumeDown != null)
+          Positioned(
+            left: 285,
+            bottom: 0,
+            width: 155,
+            height: 90,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onVolumeDown,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        if (onVolumeUp != null)
+          Positioned(
+            left: 575,
+            bottom: 0,
+            width: 155,
+            height: 90,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onVolumeUp,
               child: const SizedBox.expand(),
             ),
           ),
