@@ -22,19 +22,27 @@ class ReferenceScreen extends StatelessWidget {
         Image.asset(asset, fit: BoxFit.fill),
         if (onBack != null)
           Positioned(
-            left: 0,
+            left: 20,
             bottom: 0,
             width: 180,
-            height: 110,
-            child: GestureDetector(onTap: onBack),
+            height: 130,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onBack,
+              child: const SizedBox.expand(),
+            ),
           ),
         if (onPrimary != null)
           Positioned(
             left: 80,
             right: 80,
-            bottom: 25,
-            height: 120,
-            child: GestureDetector(onTap: onPrimary),
+            bottom: 0,
+            height: 160,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onPrimary,
+              child: const SizedBox.expand(),
+            ),
           ),
         if (overlay != null) overlay!,
       ],

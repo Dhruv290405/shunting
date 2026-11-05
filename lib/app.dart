@@ -198,7 +198,9 @@ class _ShuntingAppState extends State<ShuntingApp> {
         return ReferenceScreen(
           asset: 'assets/images/08_Pairing_P5.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP4),
-          onPrimary: () => setState(() => screen = TabletScreen.devices),
+          onPrimary: () => setState(() => screen = current == null
+              ? TabletScreen.error
+              : TabletScreen.telemetry),
         );
       case TabletScreen.connecting:
         return const ReferenceScreen(asset: 'assets/images/02_Connecting.png');
