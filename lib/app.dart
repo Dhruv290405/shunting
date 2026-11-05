@@ -102,10 +102,18 @@ class _ShuntingAppState extends State<ShuntingApp> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() {
-        _devicesLoaded = true;
-        _backendAvailable = false;
-      });
+      if (mounted) {
+        setState(() {
+          devices = [];
+          current = null;
+          battery = 0;
+          gsmRssi = 0;
+          network = false;
+          _lastTelemetryAt = null;
+          _devicesLoaded = true;
+          _backendAvailable = false;
+        });
+      }
     }
   }
 
@@ -118,10 +126,24 @@ class _ShuntingAppState extends State<ShuntingApp> {
         ? Map<String, dynamic>.from(data['diagnostics'] as Map)
         : <String, dynamic>{};
     final deviceName = data['deviceId'] ?? data['device'] ?? 'UNKNOWN';
+    final linkState = diagnostics['link_state']?.toString().toUpperCase();
+    final isOnline = diagnostics['status']?.toString().toUpperCase() == 'ONLINE' &&
+        (linkState == 'OK' || linkState == 'CONNECTED');
+    if (deviceName == 'UNKNOWN' || !isOnline) {
+      setState(() {
+        devices = [];
+        current = null;
+        battery = 0;
+        gsmRssi = 0;
+        network = false;
+        _lastTelemetryAt = null;
+      });
+      return;
+    }
     final device = ShuntingDevice(
       number: 1,
       name: deviceName.toString(),
-      online: diagnostics['status'] == 'ONLINE',
+      online: isOnline,
       inUse: true,
       battery: (diagnostics['battery_pct'] as num?)?.toInt() ?? 0,
     );
@@ -396,25 +418,37 @@ class _ShuntingAppState extends State<ShuntingApp> {
           const SizedBox(height: 18),
           Expanded(
             child: _devicesLoaded
-                ? GridView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: visible.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 18,
-                      mainAxisSpacing: 14,
-                      childAspectRatio: 2.8,
-                    ),
-                    itemBuilder: (context, index) {
-                      final d = visible[index];
-                      return DeviceCard(
-                        device: d,
-                        onTap: d.online && !d.inUse
-                            ? () => connectDevice(d)
-                            : null,
-                      );
-                    },
-                  )
+                ? visible.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'NO LIVE TRANSMITTERS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    : GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: visible.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 18,
+                          mainAxisSpacing: 14,
+                          childAspectRatio: 2.8,
+                        ),
+                        itemBuilder: (context, index) {
+                          final d = visible[index];
+                          return DeviceCard(
+                            device: d,
+                            onTap: d.online && !d.inUse
+                                ? () => connectDevice(d)
+                                : null,
+                          );
+                        },
+                      )
                 : const Center(child: CircularProgressIndicator(color: Color(0xff1e90ff))),
           ),
           Row(
