@@ -6,20 +6,7 @@ import 'services/api_service.dart';
 import 'widgets/device_card.dart';
 import 'widgets/hud.dart';
 import 'screens/splash_screen.dart';
-import 'screens/pairing_p1_screen.dart';
-import 'screens/pairing_p2_screen.dart';
-import 'screens/pairing_p3_screen.dart';
-import 'screens/pairing_p4_screen.dart';
-import 'screens/pairing_p5_screen.dart';
-import 'screens/connecting_screen.dart';
-import 'screens/telemetry_screen.dart';
-import 'screens/error_screen.dart';
-import 'screens/change_device_screen.dart';
-import 'screens/confirm_selection_screen.dart';
-import 'screens/end_shunting_screen.dart';
-import 'screens/shunting_completed_screen.dart';
-import 'screens/charger_plugged_screen.dart';
-import 'screens/obstacle_warning_screen.dart';
+import 'widgets/reference_screen.dart';
 
 enum TabletScreen {
   splash,
@@ -64,7 +51,6 @@ class _ShuntingAppState extends State<ShuntingApp> {
   bool shuntingCompleted = false;
   bool _devicesLoaded = false;
   bool _backendAvailable = true;
-  String? _errorMessage;
 
   @override
   void initState() {
@@ -99,7 +85,6 @@ class _ShuntingAppState extends State<ShuntingApp> {
       if (mounted) setState(() {
         _devicesLoaded = true;
         _backendAvailable = false;
-        _errorMessage = 'Direct Lambda telemetry unavailable: $e';
       });
     }
   }
@@ -187,76 +172,94 @@ class _ShuntingAppState extends State<ShuntingApp> {
       case TabletScreen.splash:
         return const SplashScreen();
       case TabletScreen.pairingP1:
-        return PairingP1Screen(onNext: () => setState(() => screen = TabletScreen.pairingP2));
+        return ReferenceScreen(
+          asset: 'assets/images/01_Pairing_P1.png',
+          onPrimary: () => setState(() => screen = TabletScreen.pairingP2),
+        );
       case TabletScreen.pairingP2:
-        return PairingP2Screen(
+        return ReferenceScreen(
+          asset: 'assets/images/05_Pairing_P2.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP1),
-          onNext: () => setState(() => screen = TabletScreen.pairingP3),
+          onPrimary: () => setState(() => screen = TabletScreen.pairingP3),
         );
       case TabletScreen.pairingP3:
-        return PairingP3Screen(
+        return ReferenceScreen(
+          asset: 'assets/images/06_Pairing_P3.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP2),
-          onNext: () => setState(() => screen = TabletScreen.pairingP4),
+          onPrimary: () => setState(() => screen = TabletScreen.pairingP4),
         );
       case TabletScreen.pairingP4:
-        return PairingP4Screen(
+        return ReferenceScreen(
+          asset: 'assets/images/07_Pairing_P4.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP3),
-          onNext: () => setState(() => screen = TabletScreen.pairingP5),
+          onPrimary: () => setState(() => screen = TabletScreen.pairingP5),
         );
       case TabletScreen.pairingP5:
-        return PairingP5Screen(
+        return ReferenceScreen(
+          asset: 'assets/images/08_Pairing_P5.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP4),
-          onFinish: () => setState(() => screen = TabletScreen.devices),
+          onPrimary: () => setState(() => screen = TabletScreen.devices),
         );
       case TabletScreen.connecting:
-        return const ConnectingScreen();
+        return const ReferenceScreen(asset: 'assets/images/02_Connecting.png');
       case TabletScreen.telemetry:
-        return TelemetryScreen(
-          device: current,
-          distance: distance,
-          battery: battery,
-          network: network,
-          onEnd: finishShunting,
-          onObstacle: triggerObstacle,
-          onChangeDevice: () => setState(() => screen = TabletScreen.changeDevice),
-          onCharger: toggleCharger,
+        return ReferenceScreen(
+          asset: 'assets/images/04_Telemetry.png',
+          onPrimary: () => setState(() => screen = TabletScreen.endShunting),
+          overlay: Positioned(
+            left: 0,
+            right: 0,
+            top: 235,
+            child: Center(
+              child: Text(
+                '${distance.toStringAsFixed(0)} cm',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 64,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
         );
       case TabletScreen.error:
-        return ErrorScreen(
-          onRetry: _pollTelemetry,
-          message: _errorMessage,
+        return ReferenceScreen(
+          asset: 'assets/images/03_Error.png',
+          onPrimary: _pollTelemetry,
         );
       case TabletScreen.changeDevice:
-        return ChangeDeviceScreen(
-          devices: devices,
-          current: current,
-          onSelect: changeDeviceTo,
+        return ReferenceScreen(
+          asset: 'assets/images/09_Change_Device.png',
           onBack: () => setState(() => screen = TabletScreen.telemetry),
+          onPrimary: () => setState(() => screen = TabletScreen.confirmSelection),
         );
       case TabletScreen.confirmSelection:
-        return ConfirmSelectionScreen(
-          device: current,
-          onConfirm: () => setState(() => screen = TabletScreen.telemetry),
-          onCancel: () => setState(() => screen = TabletScreen.changeDevice),
+        return ReferenceScreen(
+          asset: 'assets/images/10_Confirm_Selection.png',
+          onPrimary: () => setState(() => screen = TabletScreen.telemetry),
+          onBack: () => setState(() => screen = TabletScreen.changeDevice),
         );
       case TabletScreen.endShunting:
-        return EndShuntingScreen(
-          onConfirm: finishShunting,
-          onCancel: () => setState(() => screen = TabletScreen.telemetry),
+        return ReferenceScreen(
+          asset: 'assets/images/11_End_Shunting.png',
+          onPrimary: finishShunting,
+          onBack: () => setState(() => screen = TabletScreen.telemetry),
         );
       case TabletScreen.shuntingCompleted:
-        return const ShuntingCompletedScreen();
+        return ReferenceScreen(
+          asset: 'assets/images/12_Shunting_Completed.png',
+          onPrimary: () => setState(() => screen = TabletScreen.devices),
+        );
       case TabletScreen.charger:
-        return ChargerPluggedScreen(
-          battery: battery,
-          plugged: charger,
-          onToggle: toggleCharger,
+        return ReferenceScreen(
+          asset: 'assets/images/13_Charger_Plugged.png',
+          onPrimary: toggleCharger,
           onBack: () => setState(() => screen = TabletScreen.telemetry),
         );
       case TabletScreen.obstacleWarning:
-        return ObstacleWarningScreen(
-          device: current,
-          onClear: () async {
+        return ReferenceScreen(
+          asset: 'assets/images/14_Obstacle_Warning.png',
+          onPrimary: () async {
             await clearObstacle();
             if (mounted) setState(() => screen = TabletScreen.telemetry);
           },
