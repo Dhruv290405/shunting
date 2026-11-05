@@ -1,8 +1,8 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'models/device.dart';
 import 'services/api_service.dart';
-import 'services/socket_service.dart';
 import 'widgets/device_card.dart';
 import 'widgets/hud.dart';
 import 'screens/splash_screen.dart';
@@ -50,8 +50,8 @@ class ShuntingApp extends StatefulWidget {
 class _ShuntingAppState extends State<ShuntingApp> {
   TabletScreen screen = TabletScreen.splash;
   final api = ApiService();
-  final socket = SocketService();
   final AudioPlayer _volumePlayer = AudioPlayer();
+  Timer? _telemetryTimer;
   List<ShuntingDevice> devices = [];
   ShuntingDevice? current;
   int page = 0;
@@ -73,23 +73,11 @@ class _ShuntingAppState extends State<ShuntingApp> {
   }
 
   Future<void> _init() async {
-    try {
-      await _loadDevices();
-    } catch (e) {
-      if (mounted) setState(() => _backendAvailable = false);
-    }
-    try {
-      socket.onDeviceStatus = (_) => _loadDevices();
-      socket.onConnectionError = (error) {
-        if (mounted) setState(() {
-          network = false;
-          _errorMessage = 'Live telemetry connection failed: $error';
-        });
-      };
-      socket.connect(onTelemetryUpdate: _onTelemetryUpdate);
-    } catch (e) {
-      if (mounted) setState(() => _backendAvailable = false);
-    }
+    await _pollTelemetry();
+    _telemetryTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _pollTelemetry(),
+    );
     if (mounted) {
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) setState(() => screen = TabletScreen.pairingP1);
@@ -97,37 +85,51 @@ class _ShuntingAppState extends State<ShuntingApp> {
     }
   }
 
-  Future<void> _loadDevices() async {
+  Future<void> _pollTelemetry() async {
     try {
-      final list = await api.fetchDevices();
-      if (mounted) setState(() {
-        devices = list;
-        _devicesLoaded = true;
-        _backendAvailable = true;
-      });
+      final data = await api.fetchTelemetry();
+      if (mounted) {
+        _onTelemetryUpdate(data);
+        setState(() {
+          _devicesLoaded = true;
+          _backendAvailable = true;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() {
         _devicesLoaded = true;
         _backendAvailable = false;
-        _errorMessage = e.toString();
+        _errorMessage = 'Direct Lambda telemetry unavailable: $e';
       });
     }
   }
 
-  void _onTelemetryUpdate(dynamic data) {
+  void _onTelemetryUpdate(Map<String, dynamic> data) {
     if (!mounted) return;
+    final readings = data['readings'] is Map
+        ? Map<String, dynamic>.from(data['readings'] as Map)
+        : <String, dynamic>{};
+    final diagnostics = data['diagnostics'] is Map
+        ? Map<String, dynamic>.from(data['diagnostics'] as Map)
+        : <String, dynamic>{};
+    final deviceName = data['deviceId'] ?? data['device'] ?? 'UNKNOWN';
+    final device = ShuntingDevice(
+      number: 1,
+      name: deviceName.toString(),
+      online: diagnostics['status'] == 'ONLINE',
+      inUse: true,
+      battery: (diagnostics['battery_pct'] as num?)?.toInt() ?? 0,
+    );
     setState(() {
-      distance = (data['distance'] ?? 0).toDouble();
-      battery = (data['battery'] ?? battery).toInt();
-      network = data['network'] == true;
+      devices = [device];
+      current = device;
+      distance = ((readings['distance_cm'] as num?)?.toDouble() ?? 0) / 100;
+      battery = (diagnostics['battery_pct'] as num?)?.toInt() ?? 0;
+      network = diagnostics['link_state'] == 'OK' ||
+          diagnostics['link_state'] == 'CONNECTED';
       obstacle = data['obstacle'] ?? false;
-      charger = data['charger'] ?? false;
+      charger = diagnostics['is_charging'] ?? false;
       shuntingCompleted = data['completed'] ?? false;
-      final devName = data['device'];
-      if (devName != null) {
-        final matching = devices.where((d) => d.name == devName);
-        if (matching.isNotEmpty) current = matching.first;
-      }
     });
     if (shuntingCompleted && screen == TabletScreen.telemetry) {
       Future.delayed(const Duration(seconds: 1), () {
@@ -147,26 +149,11 @@ class _ShuntingAppState extends State<ShuntingApp> {
   }
 
   Future<void> connectDevice(ShuntingDevice device) async {
-    if (!device.online || device.inUse) return;
-    setState(() => screen = TabletScreen.connecting);
-    try {
-      final response = await api.connectDevice(device.name);
-      if (mounted) setState(() {
-        current = device;
-        distance = (response['distance'] ?? 0).toDouble();
-        battery = (response['battery'] ?? device.battery).toInt();
-        network = true;
-        screen = TabletScreen.telemetry;
-      });
-    } catch (e) {
-      if (mounted) setState(() => screen = TabletScreen.error);
-    }
+    if (!device.online) return;
+    setState(() => screen = TabletScreen.telemetry);
   }
 
   Future<void> finishShunting() async {
-    try {
-      await api.disconnectDevice();
-    } catch (_) {}
     if (mounted) setState(() {
       current?.inUse = false;
       current = null;
@@ -176,39 +163,23 @@ class _ShuntingAppState extends State<ShuntingApp> {
   }
 
   Future<void> triggerObstacle() async {
-    try {
-      await api.triggerObstacle();
-    } catch (_) {}
+    setState(() => obstacle = true);
   }
 
   Future<void> clearObstacle() async {
-    try {
-      await api.clearObstacle();
-    } catch (_) {}
+    setState(() => obstacle = false);
   }
 
   Future<void> toggleCharger() async {
-    try {
-      final resp = await api.setCharger(!charger);
-      if (mounted) setState(() {
-        charger = resp['plugged'] ?? charger;
-        battery = resp['battery'] ?? battery;
-      });
-      if (charger) {
-        if (mounted) setState(() => screen = TabletScreen.charger);
-      }
-    } catch (_) {}
+    setState(() => charger = !charger);
+    if (charger) setState(() => screen = TabletScreen.charger);
   }
 
   Future<void> changeDeviceTo(ShuntingDevice device) async {
-    if (!device.online || device.inUse) return;
-    try {
-      await api.changeDevice(device.name);
-      if (mounted) setState(() {
-        current = device;
-        screen = TabletScreen.telemetry;
-      });
-    } catch (_) {}
+    if (device.online) setState(() {
+      current = device;
+      screen = TabletScreen.telemetry;
+    });
   }
 
   Widget _buildScreen() {
@@ -252,7 +223,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
         );
       case TabletScreen.error:
         return ErrorScreen(
-          onRetry: _loadDevices,
+          onRetry: _pollTelemetry,
           message: _errorMessage,
         );
       case TabletScreen.changeDevice:
@@ -332,7 +303,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
                     width: 130,
                     height: 38,
                     child: TextButton.icon(
-                      onPressed: _loadDevices,
+                      onPressed: _pollTelemetry,
                       icon: const Icon(Icons.refresh, color: Color(0xff38d6ff)),
                       label: const Text(
                         'REFRESH',
@@ -465,7 +436,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
   @override
   void dispose() {
     _volumePlayer.dispose();
-    socket.disconnect();
+    _telemetryTimer?.cancel();
     api.dispose();
     super.dispose();
   }

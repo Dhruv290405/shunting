@@ -40,8 +40,8 @@ class ErrorScreen extends StatelessWidget {
               const SizedBox(height: 8),
             ],
             const Text(
-              'Unable to connect to the backend server. '
-              'Please ensure the backend is running.',
+              'Unable to read live telemetry from AWS Lambda. '
+              'Please check the Lambda URL and response.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, color: Colors.white60),
             ),

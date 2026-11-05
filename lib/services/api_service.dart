@@ -1,86 +1,37 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/device.dart';
 
 class ApiService {
-  static const String baseUrl = String.fromEnvironment(
-    'BACKEND_URL', defaultValue: 'http://127.0.0.1:5000',
-  ) + '/api';
+  static const String lambdaUrl = String.fromEnvironment(
+    'LAMBDA_URL',
+    defaultValue: 'https://wmrnfmn54255qt246fn6k5xmby0oebty.lambda-url.ap-south-1.on.aws/',
+  );
+  static const String lambdaApiKey = String.fromEnvironment('LAMBDA_API_KEY');
 
   final http.Client _client;
 
   ApiService({http.Client? client}) : _client = client ?? http.Client();
 
-  Future<List<ShuntingDevice>> fetchDevices() async {
-    final resp = await _client.get(Uri.parse('$baseUrl/devices')).timeout(const Duration(seconds: 8));
-    if (resp.statusCode == 200) {
-      final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final list = data['devices'] as List<dynamic>;
-      return list.map((e) => ShuntingDevice.fromJson(e)).toList();
+  Future<Map<String, dynamic>> fetchTelemetry() async {
+    final headers = <String, String>{'Accept': 'application/json'};
+    if (lambdaApiKey.isNotEmpty) headers['x-api-key'] = lambdaApiKey;
+    final resp = await _client
+        .get(Uri.parse(lambdaUrl), headers: headers)
+        .timeout(const Duration(seconds: 8));
+    if (resp.statusCode != 200) {
+      throw Exception('Lambda telemetry error ${resp.statusCode}: ${resp.body}');
     }
-    throw Exception('Failed to load devices: ${resp.statusCode}');
-  }
-
-  Future<Map<String, dynamic>> connectDevice(String deviceName) async {
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/connect/$deviceName'),
-      headers: {'Content-Type': 'application/json'},
-    ).timeout(const Duration(seconds: 8));
-    return _decodeResp(resp);
-  }
-
-  Future<Map<String, dynamic>> disconnectDevice() async {
-    final resp = await _client.post(Uri.parse('$baseUrl/disconnect'))
-        .timeout(const Duration(seconds: 8));
-    return _decodeResp(resp);
-  }
-
-  Future<Map<String, dynamic>> getTelemetry() async {
-    final resp = await _client.get(Uri.parse('$baseUrl/telemetry'))
-        .timeout(const Duration(seconds: 8));
-    return _decodeResp(resp);
-  }
-
-  Future<Map<String, dynamic>> triggerObstacle() async {
-    final resp = await _client.post(Uri.parse('$baseUrl/obstacle'))
-        .timeout(const Duration(seconds: 8));
-    return _decodeResp(resp);
-  }
-
-  Future<Map<String, dynamic>> clearObstacle() async {
-    final resp = await _client.post(Uri.parse('$baseUrl/clear_obstacle'))
-        .timeout(const Duration(seconds: 8));
-    return _decodeResp(resp);
-  }
-
-  Future<Map<String, dynamic>> setCharger(bool plugged) async {
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/charger'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'plugged': plugged}),
-    ).timeout(const Duration(seconds: 8));
-    return _decodeResp(resp);
-  }
-
-  Future<Map<String, dynamic>> changeDevice(String deviceName) async {
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/change_device/$deviceName'),
-      headers: {'Content-Type': 'application/json'},
-    ).timeout(const Duration(seconds: 8));
-    return _decodeResp(resp);
-  }
-
-  Future<Map<String, dynamic>> getStatus() async {
-    final resp = await _client.get(Uri.parse('$baseUrl/status'))
-        .timeout(const Duration(seconds: 8));
-    return _decodeResp(resp);
-  }
-
-  Map<String, dynamic> _decodeResp(http.Response resp) {
-    if (resp.statusCode == 200) {
-      return jsonDecode(resp.body) as Map<String, dynamic>;
+    final decoded = jsonDecode(resp.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception('Lambda telemetry response must be a JSON object');
     }
-    throw Exception('API error ${resp.statusCode}: ${resp.body}');
+    final body = decoded['body'];
+    if (body is String) {
+      final nested = jsonDecode(body);
+      if (nested is Map<String, dynamic>) return nested;
+    }
+    if (body is Map<String, dynamic>) return body;
+    return decoded;
   }
 
   void dispose() {
