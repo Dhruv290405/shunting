@@ -1,29 +1,38 @@
-import 'dart:convert';
-import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SocketService {
-  static const String wsUrl = 'ws://localhost:5000';
+  static const String baseUrl = String.fromEnvironment(
+    'BACKEND_URL', defaultValue: 'http://127.0.0.1:5000',
+  );
+  io.Socket? _socket;
+  void Function(String)? onConnectionError;
+  void Function(Map<String, dynamic>)? onDeviceStatus;
 
-  WebSocketChannel? _channel;
-
-  void connect({required void Function(dynamic) onTelemetryUpdate}) {
-    _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-    _channel!.stream.listen(
-      (data) {
-        final msg = jsonDecode(data) as Map<String, dynamic>;
-        final type = msg['type'] ?? msg['event'];
-        if (type == 'telemetry_update' || msg.containsKey('distance')) {
-          onTelemetryUpdate(msg);
-        }
-      },
-      onError: (err) => print('Socket error: $err'),
-      onDone: () => print('Socket disconnected'),
-    );
-    _channel!.sink.add(jsonEncode({'event': 'subscribe_telemetry'}));
+  void connect({required void Function(Map<String, dynamic>) onTelemetryUpdate}) {
+    _socket?.dispose();
+    _socket = io.io(baseUrl, <String, dynamic>{
+      // Polling works with the threaded Flask server; it upgrades to websocket
+      // automatically when simple-websocket/eventlet is installed.
+      'transports': ['polling', 'websocket'],
+      'autoConnect': false,
+      'reconnection': true,
+      'reconnectionAttempts': 5,
+    });
+    _socket!.onConnect((_) => _socket!.emit('subscribe_telemetry'));
+    _socket!.on('telemetry_update', (data) {
+      if (data is Map) onTelemetryUpdate(Map<String, dynamic>.from(data));
+    });
+    _socket!.on('device_status', (data) {
+      if (data is Map) onDeviceStatus?.call(Map<String, dynamic>.from(data));
+    });
+    _socket!.onConnectError((e) => onConnectionError?.call(e.toString()));
+    _socket!.onError((e) => onConnectionError?.call(e.toString()));
+    _socket!.connect();
   }
 
   void disconnect() {
-    _channel?.sink.close();
-    _channel = null;
+    _socket?.disconnect();
+    _socket?.dispose();
+    _socket = null;
   }
 }

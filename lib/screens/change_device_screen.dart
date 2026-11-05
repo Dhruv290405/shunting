@@ -84,7 +84,7 @@ class ChangeDeviceScreen extends StatelessWidget {
             height: 48,
             child: ElevatedButton.icon(
               onPressed: onBack,
-              icon: const Icon(Icons.arrow_back, size: 22),
+              icon: const Icon(Icons.undo, size: 22),
               label: const Text('BACK',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(

@@ -1,0 +1,55 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Flutter APK",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"build",
+				"apk",
+				"--release"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Run Flutter Chrome",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"run",
+				"-d",
+				"chrome",
+				"--web-port",
+				"8080",
+				"--dart-define=BACKEND_URL=http://127.0.0.1:5000"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build Flutter APK Release",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"build",
+				"apk",
+				"--release",
+				"--dart-define=BACKEND_URL=http://10.0.2.2:5000"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Run Shunting Backend",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"backend\\app.py"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

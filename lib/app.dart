@@ -56,9 +56,9 @@ class _ShuntingAppState extends State<ShuntingApp> {
   ShuntingDevice? current;
   int page = 0;
   int volume = 5;
-  int battery = 82;
-  bool network = true;
-  double distance = 120;
+  int battery = 0;
+  bool network = false;
+  double distance = 0;
   bool obstacle = false;
   bool charger = false;
   bool shuntingCompleted = false;
@@ -79,6 +79,13 @@ class _ShuntingAppState extends State<ShuntingApp> {
       if (mounted) setState(() => _backendAvailable = false);
     }
     try {
+      socket.onDeviceStatus = (_) => _loadDevices();
+      socket.onConnectionError = (error) {
+        if (mounted) setState(() {
+          network = false;
+          _errorMessage = 'Live telemetry connection failed: $error';
+        });
+      };
       socket.connect(onTelemetryUpdate: _onTelemetryUpdate);
     } catch (e) {
       if (mounted) setState(() => _backendAvailable = false);
@@ -111,17 +118,15 @@ class _ShuntingAppState extends State<ShuntingApp> {
     if (!mounted) return;
     setState(() {
       distance = (data['distance'] ?? 0).toDouble();
-      battery = (data['battery'] ?? 82).toInt();
-      network = data['network'] ?? true;
+      battery = (data['battery'] ?? battery).toInt();
+      network = data['network'] == true;
       obstacle = data['obstacle'] ?? false;
       charger = data['charger'] ?? false;
       shuntingCompleted = data['completed'] ?? false;
       final devName = data['device'];
       if (devName != null) {
-        current = devices.firstWhere(
-          (d) => d.name == devName,
-          orElse: () => current!,
-        );
+        final matching = devices.where((d) => d.name == devName);
+        if (matching.isNotEmpty) current = matching.first;
       }
     });
     if (shuntingCompleted && screen == TabletScreen.telemetry) {
@@ -145,10 +150,12 @@ class _ShuntingAppState extends State<ShuntingApp> {
     if (!device.online || device.inUse) return;
     setState(() => screen = TabletScreen.connecting);
     try {
-      await api.connectDevice(device.name);
+      final response = await api.connectDevice(device.name);
       if (mounted) setState(() {
         current = device;
-        distance = 120;
+        distance = (response['distance'] ?? 0).toDouble();
+        battery = (response['battery'] ?? device.battery).toInt();
+        network = true;
         screen = TabletScreen.telemetry;
       });
     } catch (e) {
@@ -163,7 +170,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
     if (mounted) setState(() {
       current?.inUse = false;
       current = null;
-      distance = 120;
+      distance = 0;
       screen = TabletScreen.devices;
     });
   }
@@ -295,18 +302,47 @@ class _ShuntingAppState extends State<ShuntingApp> {
       padding: const EdgeInsets.fromLTRB(70, 80, 70, 65),
       child: Column(
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text('DEAD-END DEVICES',
-                    style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-              TextButton.icon(
-                onPressed: _loadDevices,
-                icon: const Icon(Icons.refresh, color: Color(0xff1e90ff)),
-                label: const Text('REFRESH', style: TextStyle(color: Color(0xff1e90ff))),
-              ),
-            ],
+          SizedBox(
+            height: 52,
+            child: Stack(
+              children: [
+                Center(
+                  child: Container(
+                    width: 630,
+                    height: 52,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xff1e90ff)),
+                    ),
+                    child: const Text(
+                      'AVAILABLE DEAD-ENDS',
+                      style: TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  top: 7,
+                  child: SizedBox(
+                    width: 130,
+                    height: 38,
+                    child: TextButton.icon(
+                      onPressed: _loadDevices,
+                      icon: const Icon(Icons.refresh, color: Color(0xff38d6ff)),
+                      label: const Text(
+                        'REFRESH',
+                        style: TextStyle(color: Color(0xff38d6ff)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 18),
           Expanded(

@@ -42,7 +42,7 @@ class PairingP3Screen extends StatelessWidget {
                 height: 52,
                 child: OutlinedButton.icon(
                   onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back, size: 22),
+                  icon: const Icon(Icons.undo, size: 22),
                   label: const Text('BACK', style: TextStyle(fontSize: 16)),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xff1e90ff)),
