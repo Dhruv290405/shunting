@@ -205,6 +205,8 @@ class _ShuntingAppState extends State<ShuntingApp> {
         return ReferenceScreen(
           asset: 'assets/images/01_Pairing_P1.png',
           onPrimary: () => setState(() => screen = TabletScreen.pairingP2),
+          onPageNext: () => setState(() => screen = TabletScreen.pairingP2),
+          overlay: _buildReferenceDevices(),
           onVolumeDown: volumeDown,
           onVolumeUp: volumeUp,
         );
@@ -213,6 +215,9 @@ class _ShuntingAppState extends State<ShuntingApp> {
           asset: 'assets/images/05_Pairing_P2.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP1),
           onPrimary: () => setState(() => screen = TabletScreen.pairingP3),
+          onPagePrevious: () => setState(() => screen = TabletScreen.pairingP1),
+          onPageNext: () => setState(() => screen = TabletScreen.pairingP3),
+          overlay: _buildReferenceDevices(),
           onVolumeDown: volumeDown,
           onVolumeUp: volumeUp,
         );
@@ -221,6 +226,9 @@ class _ShuntingAppState extends State<ShuntingApp> {
           asset: 'assets/images/06_Pairing_P3.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP2),
           onPrimary: () => setState(() => screen = TabletScreen.pairingP4),
+          onPagePrevious: () => setState(() => screen = TabletScreen.pairingP2),
+          onPageNext: () => setState(() => screen = TabletScreen.pairingP4),
+          overlay: _buildReferenceDevices(),
           onVolumeDown: volumeDown,
           onVolumeUp: volumeUp,
         );
@@ -229,6 +237,9 @@ class _ShuntingAppState extends State<ShuntingApp> {
           asset: 'assets/images/07_Pairing_P4.png',
           onBack: () => setState(() => screen = TabletScreen.pairingP3),
           onPrimary: () => setState(() => screen = TabletScreen.pairingP5),
+          onPagePrevious: () => setState(() => screen = TabletScreen.pairingP3),
+          onPageNext: () => setState(() => screen = TabletScreen.pairingP5),
+          overlay: _buildReferenceDevices(),
           onVolumeDown: volumeDown,
           onVolumeUp: volumeUp,
         );
@@ -239,6 +250,8 @@ class _ShuntingAppState extends State<ShuntingApp> {
           onPrimary: () => setState(() => screen = current == null
               ? TabletScreen.error
               : TabletScreen.telemetry),
+          onPagePrevious: () => setState(() => screen = TabletScreen.pairingP4),
+          overlay: _buildReferenceDevices(),
           onVolumeDown: volumeDown,
           onVolumeUp: volumeUp,
         );
@@ -464,6 +477,82 @@ class _ShuntingAppState extends State<ShuntingApp> {
     return 'NO SIGNAL';
   }
 
+  Widget _buildReferenceStatus() {
+    final deviceStatus =
+        current != null && _telemetryIsFresh ? 'DEVICE OK' : 'DEVICE ERR';
+    final networkStatus =
+        _telemetryIsFresh && network ? 'CONNECTED' : 'OFFLINE';
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            top: 29,
+            left: 125,
+            width: 105,
+            child: _statusText('$battery%'),
+          ),
+          Positioned(
+            top: 29,
+            left: 335,
+            width: 120,
+            child: _statusText(_signalLabel),
+          ),
+          Positioned(
+            top: 29,
+            left: 545,
+            width: 145,
+            child: _statusText(deviceStatus),
+          ),
+          Positioned(
+            top: 29,
+            left: 755,
+            width: 150,
+            child: _statusText(networkStatus),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusText(String value) => Text(
+        value,
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+
+  Widget _buildReferenceDevices() {
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          for (var index = 0;
+              index < devices.length && index < 9;
+              index++)
+            Positioned(
+              left: 110 + (index % 3) * 285,
+              top: 207 + (index ~/ 3) * 110,
+              width: 235,
+              child: Text(
+                '${devices[index].name}  ${devices[index].battery}%\n'
+                '${devices[index].online ? 'ONLINE' : 'OFFLINE'}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -492,6 +581,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
                   child: Stack(
                     children: [
                       _buildScreen(),
+                      if (screen != TabletScreen.splash) _buildReferenceStatus(),
                       if (_backendAvailable &&
                           screen != TabletScreen.splash &&
                           screen != TabletScreen.charger &&
