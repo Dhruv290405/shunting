@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'models/device.dart';
 import 'services/api_service.dart';
-import 'widgets/device_card.dart';
 import 'widgets/hud.dart';
 import 'screens/splash_screen.dart';
 import 'widgets/reference_screen.dart';
@@ -58,7 +57,6 @@ class _ShuntingAppState extends State<ShuntingApp> {
   bool obstacle = false;
   bool charger = false;
   bool shuntingCompleted = false;
-  bool _devicesLoaded = false;
   bool _backendAvailable = true;
   DateTime? _lastTelemetryAt;
 
@@ -148,7 +146,6 @@ class _ShuntingAppState extends State<ShuntingApp> {
       if (mounted) {
         _onTelemetryUpdate(data);
         setState(() {
-          _devicesLoaded = true;
           _backendAvailable = true;
         });
       }
@@ -161,7 +158,6 @@ class _ShuntingAppState extends State<ShuntingApp> {
           gsmRssi = 0;
           network = false;
           _lastTelemetryAt = null;
-          _devicesLoaded = true;
           _backendAvailable = false;
           if (screen != TabletScreen.splash) {
             screen = TabletScreen.devices;
@@ -424,108 +420,54 @@ class _ShuntingAppState extends State<ShuntingApp> {
   }
 
   Widget _devices() {
-    final start = page * 9;
-    final visible = devices.skip(start).take(9).toList();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(70, 80, 70, 65),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 52,
-            child: Stack(
-              children: [
-                Center(
-                  child: Container(
-                    width: 630,
-                    height: 52,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xff1e90ff)),
-                    ),
-                    child: const Text(
-                      'AVAILABLE DEAD-ENDS',
-                      style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
+    final assets = [
+      'assets/images/05_Pairing_P2.png',
+      'assets/images/06_Pairing_P3.png',
+      'assets/images/07_Pairing_P4.png',
+      'assets/images/08_Pairing_P5.png',
+    ];
+    final visible = devices.skip(page * 9).take(9).toList();
+    return ReferenceScreen(
+      asset: assets[page.clamp(0, assets.length - 1)],
+      hidePageNumber: true,
+      onPagePrevious: page > 0
+          ? () => setState(() => page--)
+          : null,
+      onPageNext: page < assets.length - 1
+          ? () => setState(() => page++)
+          : null,
+      onRefresh: _pollTelemetry,
+      overlay: IgnorePointer(
+        child: visible.isEmpty
+            ? const Center(
+                child: Text(
+                  'NO LIVE TRANSMITTERS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                Positioned(
-                  right: 0,
-                  top: 7,
-                  child: SizedBox(
-                    width: 130,
-                    height: 38,
-                    child: TextButton.icon(
-                      onPressed: _pollTelemetry,
-                      icon: const Icon(Icons.refresh, color: Color(0xff38d6ff)),
-                      label: const Text(
-                        'REFRESH',
-                        style: TextStyle(color: Color(0xff38d6ff)),
+              )
+            : Stack(
+                children: [
+                  for (var index = 0; index < visible.length; index++)
+                    Positioned(
+                      left: 110 + (index % 3) * 285,
+                      top: 207 + (index ~/ 3) * 110,
+                      width: 235,
+                      child: Text(
+                        '${visible[index].name}  ${visible[index].battery}%\nONLINE',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          Expanded(
-            child: _devicesLoaded
-                ? visible.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'NO LIVE TRANSMITTERS',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    : GridView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: visible.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 18,
-                          mainAxisSpacing: 14,
-                          childAspectRatio: 2.8,
-                        ),
-                        itemBuilder: (context, index) {
-                          final d = visible[index];
-                          return DeviceCard(
-                            device: d,
-                            onTap: d.online && !d.inUse
-                                ? () => connectDevice(d)
-                                : null,
-                          );
-                        },
-                      )
-                : const Center(child: CircularProgressIndicator(color: Color(0xff1e90ff))),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                onPressed: page > 0 ? () => setState(() => page--) : null,
-                icon: const Icon(Icons.chevron_left, color: Color(0xff38d6ff)),
+                ],
               ),
-              Text("PAGE-${(page + 1).toString().padLeft(2, '0')}",
-                  style: const TextStyle(fontSize: 18, color: Colors.white)),
-              IconButton(
-                onPressed: start + 9 < devices.length
-                    ? () => setState(() => page++)
-                    : null,
-                icon: const Icon(Icons.chevron_right, color: Color(0xff38d6ff)),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

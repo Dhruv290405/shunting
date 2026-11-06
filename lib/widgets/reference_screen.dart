@@ -6,9 +6,11 @@ class ReferenceScreen extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onPagePrevious;
   final VoidCallback? onPageNext;
+  final VoidCallback? onRefresh;
   final VoidCallback? onVolumeDown;
   final VoidCallback? onVolumeUp;
   final Widget? overlay;
+  final bool hidePageNumber;
 
   const ReferenceScreen({
     super.key,
@@ -17,9 +19,11 @@ class ReferenceScreen extends StatelessWidget {
     this.onBack,
     this.onPagePrevious,
     this.onPageNext,
+    this.onRefresh,
     this.onVolumeDown,
     this.onVolumeUp,
     this.overlay,
+    this.hidePageNumber = false,
   });
 
   @override
@@ -28,6 +32,26 @@ class ReferenceScreen extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Image.asset(asset, fit: BoxFit.fill),
+        if (hidePageNumber)
+          const Positioned(
+            right: 0,
+            bottom: 0,
+            width: 140,
+            height: 48,
+            child: ColoredBox(color: Color(0xff02060c)),
+          ),
+        if (onRefresh != null)
+          Positioned(
+            left: 675,
+            top: 105,
+            width: 145,
+            height: 55,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onRefresh,
+              child: const SizedBox.expand(),
+            ),
+          ),
         if (onPagePrevious != null)
           Positioned(
             left: 0,
