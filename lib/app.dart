@@ -1,5 +1,8 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:battery_plus/battery_plus.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'models/device.dart';
 import 'services/api_service.dart';
@@ -38,14 +41,19 @@ class _ShuntingAppState extends State<ShuntingApp> {
   TabletScreen screen = TabletScreen.splash;
   final api = ApiService();
   final AudioPlayer _volumePlayer = AudioPlayer();
+  final Battery _tabletBattery = Battery();
+  final Connectivity _connectivity = Connectivity();
   Timer? _telemetryTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   List<ShuntingDevice> devices = [];
   ShuntingDevice? current;
   int page = 0;
   int volume = 5;
   int battery = 0;
+  int tabletBattery = 0;
   int gsmRssi = 0;
   bool network = false;
+  bool tabletNetwork = false;
   double distance = 0;
   bool obstacle = false;
   bool charger = false;
@@ -57,6 +65,11 @@ class _ShuntingAppState extends State<ShuntingApp> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _volumePlayer.setAudioContext(
       AudioContextConfig(
         route: AudioContextConfigRoute.speaker,
@@ -69,9 +82,16 @@ class _ShuntingAppState extends State<ShuntingApp> {
 
   Future<void> _playVolumeSound(String asset) async {
     try {
-      await _volumePlayer.stop();
-      await _volumePlayer.setVolume(1.0);
-      await _volumePlayer.play(AssetSource(asset), volume: 1.0);
+      final player = AudioPlayer();
+      await player.setAudioContext(
+        AudioContextConfig(
+          route: AudioContextConfigRoute.speaker,
+          focus: AudioContextConfigFocus.gain,
+          respectSilence: false,
+        ).build(),
+      );
+      await player.play(AssetSource(asset), volume: 1.0);
+      Future<void>.delayed(const Duration(milliseconds: 500), player.dispose);
     } catch (error, stackTrace) {
       debugPrint('Unable to play volume feedback: $error');
       debugPrintStack(stackTrace: stackTrace);
@@ -79,6 +99,15 @@ class _ShuntingAppState extends State<ShuntingApp> {
   }
 
   Future<void> _init() async {
+    await _refreshTabletStatus();
+    _connectivitySubscription =
+        _connectivity.onConnectivityChanged.listen((results) {
+      if (mounted) {
+        setState(() => tabletNetwork = results.any(
+              (result) => result != ConnectivityResult.none,
+            ));
+      }
+    });
     await _pollTelemetry();
     _telemetryTimer = Timer.periodic(
       const Duration(seconds: 1),
@@ -86,8 +115,30 @@ class _ShuntingAppState extends State<ShuntingApp> {
     );
     if (mounted) {
       Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) setState(() => screen = TabletScreen.pairingP1);
+        if (mounted) {
+          setState(() {
+            screen = current == null
+                ? TabletScreen.devices
+                : TabletScreen.pairingP1;
+          });
+        }
       });
+    }
+  }
+
+  Future<void> _refreshTabletStatus() async {
+    try {
+      final level = await _tabletBattery.batteryLevel;
+      final results = await _connectivity.checkConnectivity();
+      if (mounted) {
+        setState(() {
+          tabletBattery = level;
+          tabletNetwork =
+              results.any((result) => result != ConnectivityResult.none);
+        });
+      }
+    } catch (error) {
+      debugPrint('Unable to read tablet status: $error');
     }
   }
 
@@ -112,6 +163,9 @@ class _ShuntingAppState extends State<ShuntingApp> {
           _lastTelemetryAt = null;
           _devicesLoaded = true;
           _backendAvailable = false;
+          if (screen != TabletScreen.splash) {
+            screen = TabletScreen.devices;
+          }
         });
       }
     }
@@ -137,6 +191,9 @@ class _ShuntingAppState extends State<ShuntingApp> {
         gsmRssi = 0;
         network = false;
         _lastTelemetryAt = null;
+        if (screen != TabletScreen.splash) {
+          screen = TabletScreen.devices;
+        }
       });
       return;
     }
@@ -478,9 +535,9 @@ class _ShuntingAppState extends State<ShuntingApp> {
         left: 60,
         right: 60,
         child: HUD(
-          battery: battery,
+          battery: tabletBattery,
           signal: _signalLabel,
-          network: network,
+          network: tabletNetwork && network,
           deviceOk: current != null && _telemetryIsFresh,
           volume: volume,
           onVolumeDown: () {
@@ -502,7 +559,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
   }
 
   String get _signalLabel {
-    if (!_telemetryIsFresh || !network || gsmRssi == 0) {
+    if (!_telemetryIsFresh || !tabletNetwork || !network || gsmRssi == 0) {
       return 'NO SIGNAL';
     }
     if (gsmRssi >= -75) return 'STRONG';
@@ -514,8 +571,9 @@ class _ShuntingAppState extends State<ShuntingApp> {
   Widget _buildReferenceStatus() {
     final deviceStatus =
         current != null && _telemetryIsFresh ? 'DEVICE OK' : 'DEVICE ERR';
-    final networkStatus =
-        _telemetryIsFresh && network ? 'CONNECTED' : 'OFFLINE';
+    final networkStatus = _telemetryIsFresh && tabletNetwork && network
+        ? 'CONNECTED'
+        : 'OFFLINE';
     return IgnorePointer(
       child: Stack(
         children: [
@@ -523,7 +581,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
             top: 29,
             left: 125,
             width: 105,
-            child: _statusText('$battery%'),
+            child: _statusText('$tabletBattery%'),
           ),
           Positioned(
             top: 29,
@@ -559,6 +617,38 @@ class _ShuntingAppState extends State<ShuntingApp> {
           fontWeight: FontWeight.bold,
         ),
       );
+
+  void _handleSystemBack() {
+    switch (screen) {
+      case TabletScreen.pairingP2:
+        setState(() => screen = TabletScreen.pairingP1);
+        return;
+      case TabletScreen.pairingP3:
+        setState(() => screen = TabletScreen.pairingP2);
+        return;
+      case TabletScreen.pairingP4:
+        setState(() => screen = TabletScreen.pairingP3);
+        return;
+      case TabletScreen.pairingP5:
+        setState(() => screen = TabletScreen.pairingP4);
+        return;
+      case TabletScreen.telemetry:
+      case TabletScreen.error:
+      case TabletScreen.changeDevice:
+      case TabletScreen.endShunting:
+      case TabletScreen.charger:
+      case TabletScreen.obstacleWarning:
+        setState(() => screen = TabletScreen.devices);
+        return;
+      case TabletScreen.devices:
+      case TabletScreen.splash:
+      case TabletScreen.pairingP1:
+      case TabletScreen.connecting:
+      case TabletScreen.confirmSelection:
+      case TabletScreen.shuntingCompleted:
+        return;
+    }
+  }
 
   Widget _buildReferenceDevices() {
     return IgnorePointer(
@@ -599,37 +689,44 @@ class _ShuntingAppState extends State<ShuntingApp> {
           brightness: Brightness.dark,
         ),
       ),
-      home: Scaffold(
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) => Center(
-              child: AspectRatio(
-                aspectRatio: 1024 / 600,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: [Color(0xff07101c), Color(0xff02060c)],
-                      radius: 0.9,
+      home: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) _handleSystemBack();
+        },
+        child: Scaffold(
+          body: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) => Center(
+                child: AspectRatio(
+                  aspectRatio: 1024 / 600,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: RadialGradient(
+                        colors: [Color(0xff07101c), Color(0xff02060c)],
+                        radius: 0.9,
+                      ),
                     ),
-                  ),
-                  child: Stack(
-                    children: [
-                      _buildScreen(),
-                      if (screen != TabletScreen.splash) _buildReferenceStatus(),
-                      if (_backendAvailable &&
-                          screen != TabletScreen.splash &&
-                          screen != TabletScreen.charger &&
-                          screen != TabletScreen.obstacleWarning &&
-                          screen != TabletScreen.error &&
-                          screen != TabletScreen.shuntingCompleted &&
-                          screen != TabletScreen.pairingP1 &&
-                          screen != TabletScreen.pairingP2 &&
-                          screen != TabletScreen.pairingP3 &&
-                          screen != TabletScreen.pairingP4 &&
-                          screen != TabletScreen.pairingP5 &&
-                          screen != TabletScreen.connecting)
-                        _buildHud(),
-                    ],
+                    child: Stack(
+                      children: [
+                        _buildScreen(),
+                        if (screen != TabletScreen.splash)
+                          _buildReferenceStatus(),
+                        if (_backendAvailable &&
+                            screen != TabletScreen.splash &&
+                            screen != TabletScreen.charger &&
+                            screen != TabletScreen.obstacleWarning &&
+                            screen != TabletScreen.error &&
+                            screen != TabletScreen.shuntingCompleted &&
+                            screen != TabletScreen.pairingP1 &&
+                            screen != TabletScreen.pairingP2 &&
+                            screen != TabletScreen.pairingP3 &&
+                            screen != TabletScreen.pairingP4 &&
+                            screen != TabletScreen.pairingP5 &&
+                            screen != TabletScreen.connecting)
+                          _buildHud(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -644,6 +741,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
   void dispose() {
     _volumePlayer.dispose();
     _telemetryTimer?.cancel();
+    _connectivitySubscription?.cancel();
     api.dispose();
     super.dispose();
   }

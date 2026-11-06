@@ -54,10 +54,10 @@ class ReferenceScreen extends StatelessWidget {
           ),
         if (onBack != null)
           Positioned(
-            left: 20,
+            left: 48,
             bottom: 0,
-            width: 150,
-            height: 105,
+            width: 105,
+            height: 78,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onBack,
@@ -66,10 +66,10 @@ class ReferenceScreen extends StatelessWidget {
           ),
         if (onPrimary != null)
           Positioned(
-            left: 180,
-            right: 20,
-            bottom: 0,
-            height: 100,
+            left: 790,
+            width: 225,
+            bottom: 5,
+            height: 75,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onPrimary,
@@ -78,10 +78,10 @@ class ReferenceScreen extends StatelessWidget {
           ),
         if (onVolumeDown != null)
           Positioned(
-            left: 270,
-            bottom: 0,
-            width: 180,
-            height: 105,
+            left: 300,
+            bottom: 5,
+            width: 135,
+            height: 75,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onVolumeDown,
@@ -90,10 +90,10 @@ class ReferenceScreen extends StatelessWidget {
           ),
         if (onVolumeUp != null)
           Positioned(
-            left: 560,
-            bottom: 0,
-            width: 185,
-            height: 105,
+            left: 590,
+            bottom: 5,
+            width: 135,
+            height: 75,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onVolumeUp,
