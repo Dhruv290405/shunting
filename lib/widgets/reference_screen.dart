@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ReferenceScreen extends StatelessWidget {
   final String asset;
@@ -31,25 +32,26 @@ class ReferenceScreen extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(
-          asset,
-          fit: BoxFit.fill,
-          gaplessPlayback: true,
-          errorBuilder: (context, error, stackTrace) {
-            debugPrint('Unable to render reference asset $asset: $error');
-            return ColoredBox(
-              color: const Color(0xff02060c),
-              child: Center(
-                child: Text(
-                  'REFERENCE SCREEN UNAVAILABLE',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+        FutureBuilder<Uint8List>(
+          future: _loadAsset(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              debugPrint('Unable to render reference asset $asset: '
+                  '${snapshot.error}');
+              return const ColoredBox(color: Color(0xff02060c));
+            }
+            if (!snapshot.hasData) {
+              return const ColoredBox(color: Color(0xff02060c));
+            }
+            return Image.memory(
+              snapshot.data!,
+              fit: BoxFit.fill,
+              gaplessPlayback: true,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (context, error, stackTrace) {
+                debugPrint('Unable to decode reference asset $asset: $error');
+                return const ColoredBox(color: Color(0xff02060c));
+              },
             );
           },
         ),
@@ -148,5 +150,10 @@ class ReferenceScreen extends StatelessWidget {
         if (overlay != null) overlay!,
       ],
     );
+  }
+
+  Future<Uint8List> _loadAsset() async {
+    final data = await rootBundle.load(asset);
+    return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
   }
 }
