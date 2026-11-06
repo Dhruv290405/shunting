@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'models/device.dart';
 import 'services/api_service.dart';
-import 'widgets/hud.dart';
 import 'screens/splash_screen.dart';
 import 'widgets/reference_screen.dart';
 
@@ -57,7 +56,6 @@ class _ShuntingAppState extends State<ShuntingApp> {
   bool obstacle = false;
   bool charger = false;
   bool shuntingCompleted = false;
-  bool _backendAvailable = true;
   DateTime? _lastTelemetryAt;
 
   @override
@@ -80,6 +78,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
 
   Future<void> _playVolumeSound(String asset) async {
     try {
+      await SystemSound.play(SystemSoundType.click);
       final player = AudioPlayer();
       await player.setAudioContext(
         AudioContextConfig(
@@ -146,7 +145,6 @@ class _ShuntingAppState extends State<ShuntingApp> {
       if (mounted) {
         _onTelemetryUpdate(data);
         setState(() {
-          _backendAvailable = true;
         });
       }
     } catch (e) {
@@ -158,7 +156,6 @@ class _ShuntingAppState extends State<ShuntingApp> {
           gsmRssi = 0;
           network = false;
           _lastTelemetryAt = null;
-          _backendAvailable = false;
           if (screen != TabletScreen.splash) {
             screen = TabletScreen.devices;
           }
@@ -430,6 +427,7 @@ class _ShuntingAppState extends State<ShuntingApp> {
     return ReferenceScreen(
       asset: assets[page.clamp(0, assets.length - 1)],
       hidePageNumber: true,
+      onBack: () => setState(() => screen = TabletScreen.pairingP1),
       onPagePrevious: page > 0
           ? () => setState(() => page--)
           : null,
@@ -439,13 +437,30 @@ class _ShuntingAppState extends State<ShuntingApp> {
       onRefresh: _pollTelemetry,
       overlay: IgnorePointer(
         child: visible.isEmpty
-            ? const Center(
-                child: Text(
-                  'NO LIVE TRANSMITTERS',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+            ? Positioned(
+                left: 395,
+                top: 315,
+                width: 235,
+                height: 72,
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xdd02060c),
+                    border: Border.all(
+                      color: const Color(0xff38d6ff),
+                      width: 1.5,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'NO LIVE\nTRANSMITTERS',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      height: 1.1,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               )
@@ -471,27 +486,6 @@ class _ShuntingAppState extends State<ShuntingApp> {
       ),
     );
   }
-
-  Widget _buildHud() => Positioned(
-        top: 14,
-        left: 60,
-        right: 60,
-        child: HUD(
-          battery: tabletBattery,
-          signal: _signalLabel,
-          network: tabletNetwork && network,
-          deviceOk: current != null && _telemetryIsFresh,
-          volume: volume,
-          onVolumeDown: () {
-            setState(() => volume = (volume - 1).clamp(0, 10));
-            _playVolumeSound('sounds/volume_down.wav');
-          },
-          onVolumeUp: () {
-            setState(() => volume = (volume + 1).clamp(0, 10));
-            _playVolumeSound('sounds/volume_up.wav');
-          },
-        ),
-      );
 
   bool get _telemetryIsFresh {
     final lastTelemetry = _lastTelemetryAt;
@@ -520,27 +514,27 @@ class _ShuntingAppState extends State<ShuntingApp> {
       child: Stack(
         children: [
           Positioned(
-            top: 29,
-            left: 125,
-            width: 105,
+            top: 34,
+            left: 85,
+            width: 170,
             child: _statusText('$tabletBattery%'),
           ),
           Positioned(
-            top: 29,
-            left: 335,
-            width: 120,
+            top: 34,
+            left: 285,
+            width: 170,
             child: _statusText(_signalLabel),
           ),
           Positioned(
-            top: 29,
-            left: 545,
-            width: 145,
+            top: 34,
+            left: 485,
+            width: 170,
             child: _statusText(deviceStatus),
           ),
           Positioned(
-            top: 29,
-            left: 755,
-            width: 150,
+            top: 34,
+            left: 685,
+            width: 170,
             child: _statusText(networkStatus),
           ),
         ],
@@ -654,19 +648,6 @@ class _ShuntingAppState extends State<ShuntingApp> {
                         _buildScreen(),
                         if (screen != TabletScreen.splash)
                           _buildReferenceStatus(),
-                        if (_backendAvailable &&
-                            screen != TabletScreen.splash &&
-                            screen != TabletScreen.charger &&
-                            screen != TabletScreen.obstacleWarning &&
-                            screen != TabletScreen.error &&
-                            screen != TabletScreen.shuntingCompleted &&
-                            screen != TabletScreen.pairingP1 &&
-                            screen != TabletScreen.pairingP2 &&
-                            screen != TabletScreen.pairingP3 &&
-                            screen != TabletScreen.pairingP4 &&
-                            screen != TabletScreen.pairingP5 &&
-                            screen != TabletScreen.connecting)
-                          _buildHud(),
                       ],
                     ),
                   ),
