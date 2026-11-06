@@ -31,7 +31,28 @@ class ReferenceScreen extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(asset, fit: BoxFit.fill),
+        Image.asset(
+          asset,
+          fit: BoxFit.fill,
+          gaplessPlayback: true,
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('Unable to render reference asset $asset: $error');
+            return ColoredBox(
+              color: const Color(0xff02060c),
+              child: Center(
+                child: Text(
+                  'REFERENCE SCREEN UNAVAILABLE',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
         if (hidePageNumber)
           const Positioned(
             right: 0,
