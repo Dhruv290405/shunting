@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// A rectangular tap zone in the 1024x600 reference coordinate space.
+class ReferenceHotspot {
+  final Rect rect;
+  final VoidCallback onTap;
+
+  const ReferenceHotspot(this.rect, this.onTap);
+}
+
 class ReferenceScreen extends StatelessWidget {
   final String asset;
+  final List<ReferenceHotspot> hotspots;
   final VoidCallback? onPrimary;
   final VoidCallback? onBack;
   final VoidCallback? onPagePrevious;
@@ -16,6 +25,7 @@ class ReferenceScreen extends StatelessWidget {
   const ReferenceScreen({
     super.key,
     required this.asset,
+    this.hotspots = const [],
     this.onPrimary,
     this.onBack,
     this.onPagePrevious,
@@ -144,6 +154,15 @@ class ReferenceScreen extends StatelessWidget {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: onVolumeUp,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        for (final spot in hotspots)
+          Positioned.fromRect(
+            rect: spot.rect,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: spot.onTap,
               child: const SizedBox.expand(),
             ),
           ),

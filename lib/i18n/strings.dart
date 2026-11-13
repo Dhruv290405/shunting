@@ -1,0 +1,128 @@
+enum AppLang { en, hi }
+
+/// Operator-facing text for every HMI screen, in English and Hindi. Keep
+/// layouts unaffected by translating text only - never font size or
+/// position - and let [Strings.t] fall back to English for a missing key.
+class Strings {
+  Strings._();
+
+  static String t(AppLang lang, String key, [Map<String, String>? args]) {
+    var s = (lang == AppLang.hi ? _hi[key] : null) ?? _en[key] ?? key;
+    if (args != null) {
+      args.forEach((k, v) => s = s.replaceAll('{$k}', v));
+    }
+    return s;
+  }
+
+  static const _en = <String, String>{
+    'splash_welcome': 'Welcome to',
+    'splash_title': 'Indian Railways',
+    'splash_footer': 'Developed by PiSolve',
+    'devices_title': 'Available dead-ends',
+    'devices_subtitle_empty': 'No devices online',
+    'devices_subtitle_count': '{n} online · tap one to connect',
+    'refresh': 'Refresh',
+    'refreshing': 'Refreshing…',
+    'devices_empty_title': 'No live transmitters',
+    'devices_empty_subtitle': 'Check that the device is turned on',
+    'previous': 'Previous',
+    'next': 'Next',
+    'page_of': 'Page {a} of {b}',
+    'connecting_to': 'Connecting to {name}',
+    'seconds_left': '{n} seconds left',
+    'distance_label': 'DISTANCE TO DEAD-END',
+    'out_of_range': 'Out of range',
+    'no_train_within': 'No train within {n} m',
+    'unit_m': 'm',
+    'back': 'Back',
+    'end_shunting': 'End shunting',
+    'cant_connect': "Can't connect to the dead-end",
+    'check_device_on': 'Please check if the device is turned on.',
+    'back_to_list': 'Back to device list',
+    'shunting_completed': 'Shunting completed',
+    'thank_you': 'Thank you',
+    'device_disconnected': 'The dead-end device has been disconnected.',
+    'confirm_selection_title': 'Confirm current selection?',
+    'confirm_selection_body': 'You are attempting to connect with:',
+    'change_device_title': 'Change the selected\ndead-end device?',
+    'change_device_body': 'Current device:',
+    'change_device_note': 'The existing connection will be closed.',
+    'end_shunting_title': 'End shunting?',
+    'end_shunting_body':
+        'Are you sure the current shunting\noperation is complete?',
+    'yes': 'Yes',
+    'no': 'No',
+    'warning': 'WARNING',
+    'human_obstacle': 'Human / obstacle detected',
+    'near_dead_end_range': 'Near the dead-end · train out of range',
+    'near_dead_end_at': 'Near the dead-end · train at {n} m',
+    'charger_plugged': 'Charger plugged in',
+    'charged': 'charged',
+    'no_device': 'No device',
+    'muted': 'Muted',
+    'link_excellent': 'Link excellent',
+    'link_good': 'Link good',
+    'volume_pct': 'Volume {n}%',
+    'online': 'Online',
+    'offline': 'Offline',
+    'buffer_stop': 'Buffer stop',
+    'language': 'Language',
+    'brightness': 'Brightness',
+  };
+
+  static const _hi = <String, String>{
+    'splash_welcome': 'आपका स्वागत है',
+    'splash_title': 'भारतीय रेलवे',
+    'splash_footer': 'PiSolve द्वारा निर्मित',
+    'devices_title': 'उपलब्ध डेड-एंड',
+    'devices_subtitle_empty': 'कोई डिवाइस ऑनलाइन नहीं',
+    'devices_subtitle_count': '{n} ऑनलाइन · कनेक्ट करने के लिए टैप करें',
+    'refresh': 'रीफ्रेश',
+    'refreshing': 'रीफ्रेश हो रहा है…',
+    'devices_empty_title': 'कोई लाइव ट्रांसमीटर नहीं',
+    'devices_empty_subtitle': 'जांचें कि डिवाइस चालू है',
+    'previous': 'पिछला',
+    'next': 'अगला',
+    'page_of': 'पृष्ठ {a} / {b}',
+    'connecting_to': '{name} से कनेक्ट हो रहा है',
+    'seconds_left': '{n} सेकंड शेष',
+    'distance_label': 'डेड-एंड की दूरी',
+    'out_of_range': 'सीमा से बाहर',
+    'no_train_within': '{n} मी के भीतर कोई ट्रेन नहीं',
+    'unit_m': 'मी',
+    'back': 'वापस',
+    'end_shunting': 'शंटिंग समाप्त करें',
+    'cant_connect': 'डेड-एंड से कनेक्ट नहीं हो सका',
+    'check_device_on': 'कृपया जांचें कि डिवाइस चालू है।',
+    'back_to_list': 'डिवाइस सूची पर वापस जाएं',
+    'shunting_completed': 'शंटिंग पूर्ण हुई',
+    'thank_you': 'धन्यवाद',
+    'device_disconnected': 'डेड-एंड डिवाइस डिस्कनेक्ट कर दिया गया है।',
+    'confirm_selection_title': 'वर्तमान चयन की पुष्टि करें?',
+    'confirm_selection_body': 'आप इससे कनेक्ट करने का प्रयास कर रहे हैं:',
+    'change_device_title': 'चयनित डेड-एंड\nडिवाइस बदलें?',
+    'change_device_body': 'वर्तमान डिवाइस:',
+    'change_device_note': 'मौजूदा कनेक्शन बंद कर दिया जाएगा।',
+    'end_shunting_title': 'शंटिंग समाप्त करें?',
+    'end_shunting_body':
+        'क्या आप सुनिश्चित हैं कि वर्तमान\nशंटिंग कार्य पूरा हो गया है?',
+    'yes': 'हाँ',
+    'no': 'नहीं',
+    'warning': 'चेतावनी',
+    'human_obstacle': 'व्यक्ति / बाधा का पता चला',
+    'near_dead_end_range': 'डेड-एंड के पास · ट्रेन सीमा से बाहर',
+    'near_dead_end_at': 'डेड-एंड के पास · ट्रेन {n} मी पर',
+    'charger_plugged': 'चार्जर लगा हुआ है',
+    'charged': 'चार्ज हुआ',
+    'no_device': 'कोई डिवाइस नहीं',
+    'muted': 'म्यूट',
+    'link_excellent': 'लिंक उत्कृष्ट',
+    'link_good': 'लिंक अच्छा',
+    'volume_pct': 'वॉल्यूम {n}%',
+    'online': 'ऑनलाइन',
+    'offline': 'ऑफलाइन',
+    'buffer_stop': 'बफर स्टॉप',
+    'language': 'भाषा',
+    'brightness': 'चमक',
+  };
+}
